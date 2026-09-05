@@ -2,6 +2,10 @@
 name = "rocky-models"
 version = "0.1.0"
 edition = "2024"
+# Unpublished: ROCKY ships as an application, not as crates.io libraries.
+# Also what makes `cargo deny check licenses` treat this crate as private, so
+# the licence gate reports third-party obligations only.
+publish = false
 
 [dependencies]
 # Weighed justification (2026-09-05): secret values must live in OS-backed
@@ -18,3 +22,21 @@ keyring = "3"
 # 2.x deliberately instead of chasing the 3.x API.
 serde_json = "1"
 ureq = { version = "2", features = ["json"] }
+
+# Backend selection (2026-09-06). `keyring` 3.x ships NO credential store by
+# default: with no store feature enabled it falls back to `keyring::mock`,
+# whose builder hands out a fresh empty credential per `Entry::new`, so a
+# store followed by a load silently reports no entry. Feature unification
+# means these tables only add features to the `keyring` above; they never
+# make it conditional, so `KeyringSecretStore` still compiles everywhere.
+#
+# Linux is deliberately absent: `sync-secret-service` would pull
+# `dbus-secret-service` plus a crypto stack into the trust surface, which is
+# a dependency decision of its own. Until it is taken, Linux still resolves
+# to the mock store, so `KeyringSecretStore` MUST NOT be depended on there.
+# Tracked in `docs/plans/DEPENDENCY_REVIEW.md`.
+[target.'cfg(windows)'.dependencies]
+keyring = { version = "3", features = ["windows-native"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3", features = ["apple-native"] }

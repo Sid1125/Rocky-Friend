@@ -2,5 +2,9 @@
 name = "rocky-domain"
 version = "0.1.0"
 edition = "2024"
+# Unpublished: ROCKY ships as an application, not as crates.io libraries.
+# Also what makes `cargo deny check licenses` treat this crate as private, so
+# the licence gate reports third-party obligations only.
+publish = false
 
 [dependencies]

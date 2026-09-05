@@ -408,6 +408,12 @@ impl SecretStore for InMemorySecretStore {
 /// OS-backed secret store (Credential Manager / Secret Service / Keychain
 /// via the `keyring` crate). Values never touch ROCKY's database, logs, or
 /// prompts except through explicit caller reads.
+///
+/// Platform support is not uniform. Windows and macOS request a real
+/// `keyring` backend in this crate's manifest; Linux does not yet, so there
+/// `keyring` resolves to its mock store, which accepts a write and then
+/// reports no entry. Callers on Linux must use [`InMemorySecretStore`] until
+/// a backend is chosen (`docs/plans/DEPENDENCY_REVIEW.md`).
 #[derive(Clone, Debug)]
 pub struct KeyringSecretStore {
     service: String,
@@ -869,10 +875,32 @@ mod tests {
     /// writes (then deletes) a real entry. Run explicitly to verify a
     /// platform backend: `cargo test -p rocky-models -- --ignored`.
     ///
-    /// Observed 2026-09-05 on this Windows dev machine: `store_secret`
-    /// succeeds but an immediate load reports no entry (vault/session
-    /// quirk), so the OS backend is currently UNRELIABLE here and must not
-    /// be depended on until re-verified. The test deletes first so reruns
+    /// Re-verified 2026-09-06 on a second, independent Windows 11 machine
+    /// (`rustc 1.98.1`). The 2026-09-05 note blamed a "vault/session quirk";
+    /// that diagnosis was wrong. Root cause: `keyring` 3.x enables no
+    /// credential store unless a store feature is requested, and with none
+    /// requested `keyring::lib` does `pub use mock as default`.
+    /// `MockCredentialBuilder::build` returns a fresh empty credential for
+    /// every `Entry::new`, and [`KeyringSecretStore::entry`] builds a new
+    /// `Entry` per operation, so `store_secret` wrote into a value that was
+    /// dropped and `load_secret` read a different empty one, surfacing as
+    /// `NoEntry` -> `Ok(None)`. Not machine-specific, not a vault bug: a
+    /// missing Cargo feature. Corroborated by `cargo tree -p keyring`
+    /// resolving only `log` + `zeroize`, i.e. no `windows-sys` backend.
+    ///
+    /// Evidence, same machine, same commit, only the manifest differing:
+    /// before enabling `windows-native`, `left: None right:
+    /// Some("probe-value")` at the first assertion; after, `1 passed`.
+    /// The manifest now requests `windows-native` on Windows and
+    /// `apple-native` on macOS, so the backend is dependable on those two.
+    ///
+    /// Verdict: the *backend* is usable on Windows and macOS; this *test*
+    /// stays `#[ignore]`d regardless, because it mutates real OS credential
+    /// state and CI has no vault to mutate. The CI-visible guard against a
+    /// silent regression to the mock is
+    /// `keyring_backend_is_not_the_mock_store` below. Linux is still on the
+    /// mock store and must not be trusted; see the manifest and
+    /// `docs/plans/DEPENDENCY_REVIEW.md`. The test deletes first so reruns
     /// never stack stale entries.
     #[test]
     #[ignore]
@@ -889,6 +917,31 @@ mod tests {
         );
         assert!(store.delete_secret("probe").expect("delete"));
         assert_eq!(store.load_secret("probe").expect("load"), None);
+    }
+
+    /// Pins the invariant the 2026-09-06 investigation exposed: on platforms
+    /// where a real backend is wired, `keyring`'s compiled-in default must
+    /// not be the mock store. The mock accepts writes and then reports
+    /// `NoEntry`, so a silent regression here would silently discard every
+    /// secret rather than fail. Reads no credential and writes nothing, so
+    /// unlike the round-trip test above it is safe to run in CI.
+    ///
+    /// Gated to Windows and macOS deliberately: Linux has no store feature
+    /// requested yet, so the mock *is* the expected default there and this
+    /// assertion would be a false alarm.
+    #[cfg(any(windows, target_os = "macos"))]
+    #[test]
+    fn keyring_backend_is_not_the_mock_store() {
+        let builder = keyring::default::default_credential_builder();
+        assert!(
+            !builder
+                .as_any()
+                .is::<keyring::mock::MockCredentialBuilder>(),
+            "keyring resolved to the mock credential store; a platform store \
+             feature (windows-native / apple-native) is missing from \
+             rocky-models/Cargo.toml and every stored secret would be silently \
+             discarded"
+        );
     }
 
     #[test]
