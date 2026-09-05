@@ -1,0 +1,15 @@
+[package]
+name = "rocky-executors"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rocky-agents = { path = "../rocky-agents" }
+rocky-domain = { path = "../rocky-domain" }
+rocky-ipc = { path = "../rocky-ipc" }
+rocky-models = { path = "../rocky-models" }
+rocky-policy = { path = "../rocky-policy" }
+rocky-resources = { path = "../rocky-resources" }
+rocky-runtime = { path = "../rocky-runtime" }
+rocky-storage = { path = "../rocky-storage" }
+rocky-tools = { path = "../rocky-tools" }

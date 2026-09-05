@@ -1,0 +1,20 @@
+[package]
+name = "rocky-models"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# Weighed justification (2026-09-05): secret values must live in OS-backed
+# credential storage (Credential Manager / Secret Service / Keychain), which
+# no stdlib API reaches. `keyring` is the narrowest such crate; only the
+# explicit `KeyringSecretStore` touches it, and tests default to the
+# in-memory store.
+keyring = "3"
+# Weighed justification (2026-09-05): the localhost provider needs HTTP
+# without an async runtime (the provider trait is synchronous by design, so
+# Tokio/reqwest would drag a reactor into a sync boundary). `ureq` 2.x is
+# the narrowest blocking client with a long-stable API; `serde_json` parses
+# chat replies without derive macros or schema codegen. Pinned major line
+# 2.x deliberately instead of chasing the 3.x API.
+serde_json = "1"
+ureq = { version = "2", features = ["json"] }

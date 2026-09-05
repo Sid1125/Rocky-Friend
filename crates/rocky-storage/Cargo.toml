@@ -1,0 +1,9 @@
+[package]
+name = "rocky-storage"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rocky-domain = { path = "../rocky-domain" }
+rocky-audit = { path = "../rocky-audit" }
+rusqlite = { version = "0.40.2", features = ["bundled"] }

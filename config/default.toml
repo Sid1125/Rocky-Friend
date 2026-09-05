@@ -1,0 +1,16 @@
+[runtime]
+max_subagents = 3
+max_agent_depth = 1
+idle_background_work = false
+
+[resources]
+mode = "adaptive"
+
+[security]
+default_permission = "deny"
+cloud_models_enabled = false
+arbitrary_shell_enabled = false
+admin_execution_enabled = false
+
+[storage]
+database = "rocky.db"

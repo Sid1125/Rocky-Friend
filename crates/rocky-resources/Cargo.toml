@@ -1,0 +1,14 @@
+[package]
+name = "rocky-resources"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# Weighed justification (2026-09-05): the standard library exposes no
+# CPU/RAM counters on any desktop OS, so a sampler is impossible without an
+# OS-abstraction dependency. sysinfo is the narrowest such crate (no async
+# runtime, no services); it is used for single-shot samples only, never for
+# background threads or polling loops, which stay the caller's decision.
+# Pinned to 0.36: newer releases require a newer rustc than this project's
+# stable toolchain, and no sampler feature needs them.
+sysinfo = "=0.36.1"

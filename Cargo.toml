@@ -1,0 +1,16 @@
+[workspace]
+resolver = "3"
+members = [
+  "crates/rocky-domain",
+  "crates/rocky-policy",
+  "crates/rocky-runtime",
+  "crates/rocky-agents",
+  "crates/rocky-tools",
+  "crates/rocky-resources",
+  "crates/rocky-audit",
+  "crates/rocky-ipc",
+  "crates/rocky-config",
+  "crates/rocky-storage",
+  "crates/rocky-models",
+  "crates/rocky-executors"
+]
