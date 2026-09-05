@@ -1,0 +1,48 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 1.5rem;
+  max-width: 72ch;
+}
+
+.subtitle {
+  opacity: 0.75;
+  margin-top: -0.5rem;
+}
+
+section {
+  margin-top: 2rem;
+  border-top: 1px solid currentColor;
+  padding-top: 1rem;
+}
+
+input {
+  display: block;
+  width: 100%;
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  box-sizing: border-box;
+}
+
+button {
+  padding: 0.5rem 1rem;
+  margin: 0.25rem 0.25rem 0.25rem 0;
+  cursor: pointer;
+}
+
+.error {
+  color: #b00020;
+  min-height: 1.2em;
+}
+
+.hint {
+  opacity: 0.6;
+}
+
+#tasks li {
+  margin: 0.5rem 0;
+}

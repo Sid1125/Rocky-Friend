@@ -4,7 +4,7 @@ Last updated: 2026-09-05
 
 ## Overall status
 
-**Estimated full-project completion: 81%**
+**Estimated full-project completion: 87%**
 
 This is an engineering estimate against the full personal-project vision, not a measure of code volume. The goal is to build as much useful capability as practical while retaining the project constitution's safety boundaries.
 
@@ -80,6 +80,7 @@ This is an engineering estimate against the full personal-project vision, not a 
 - [x] Give workers parent-task binding and caller-clock deadline expiry (saturating, panic-free); `spawn` carries the parent task.
 - [x] Persist every audit outcome to SQLite through a tested gate-to-store chain (covers the previously untested `Cancelled` mapping).
 - [x] Run the bounded agent step loop: scripted-model proposals → invocation-table scopes → gate permits → executor dispatch → evidence capture, with flood aborts, cancellation reporting, quiet termination, and per-proposal denial tolerance.
+- [x] Scaffold the Tauri 2 desktop shell (`apps/desktop`): seven thin command adapters (submit/list/query/cancel/approve/deny/inspect-contract) over the core boundary with behavior tested without the framework, in-memory state, strict CSP static workspace UI (task list, submit, cancel, detail + constraints). Verified: `cargo build`, 5 adapter tests, `node --check`. Deferred with reasons: `tauri dev` windowing/bundling run, PNG bundle icons (placeholder ICO generated for the Windows resource step), React migration.
 - [x] Add strict configuration loading for the existing secure defaults.
 - [x] Add a persistence boundary with transactional task-state updates and revision tracking.
 - [x] Add a SQLite task-store adapter behind the persistence boundary.
@@ -94,20 +95,20 @@ This is an engineering estimate against the full personal-project vision, not a 
 | Rust toolchain | Passing | `rustc 1.94.1`, `cargo 1.94.1` |
 | Formatting | Passing | `cargo fmt --check` |
 | Linting | Passing | `cargo clippy --workspace --all-targets -- -D warnings` |
-| Tests | Passing | `cargo test --workspace`: 224 unit/integration tests passed, 1 ignored (attributes and results audited per binary; historical hand-counts corrected) |
-| Post-change verification | Passing | All checks rerun after args/Ollama/worker-loop batch |
+| Tests | Passing | `cargo test --workspace`: 229 unit/integration tests passed, 1 ignored (attributes and results audited per binary) |
+| Post-change verification | Passing | All checks rerun after desktop shell; `node --check` clean on UI script |
 
 ## Next tasks
 
 1. [x] Issue non-forgeable runtime permits and introduce executor traits that consume them. (Permits done; single `FilesystemReadExecutor` struct consumes them. A shared executor trait waits for the second executor type per YAGNI.)
 2. [x] Add a canonicalized, scoped filesystem-read executor.
-3. [ ] Add Tauri command adapters (boundary review in `docs/plans/TAURI_READINESS.md`: green-lit for the five commands + eight covered events; agent-activity/resource panels blocked on orchestrator/sampler).
+3. [x] Add Tauri command adapters (seven thin adapters built and tested; `tauri dev` windowing run and PNG bundle icons remain).
 4. [x] Add a resource sampling adapter. (Done: single-shot sysinfo sampler feeding the pure classifier; polling cadence stays the caller's decision.)
 5. [x] Consume persisted approvals in the runtime gate (verify hash, expiry, revocation before converting `ApprovalRequired` into a permit) and enforce expiration/revocation end to end.
 
 ## Planned capability areas
 
-- [ ] Tauri 2 desktop host and React UI.
+- [ ] Tauri 2 desktop host and React UI. (Shell + static workspace UI done; `tauri dev` run, PNG icons, and React migration remain.)
 - [x] SQLite persistence and migrations. (Done: `SqliteTaskStore` behind the `TaskStore` boundary, schema v2 with v1 migration, transactional transitions, append-only audit events.)
 - [ ] Platform-specific, canonicalized filesystem executor.
 - [x] Structured, allowlisted process executor.
@@ -118,6 +119,53 @@ This is an engineering estimate against the full personal-project vision, not a 
 - [ ] CI, dependency review, SBOM, and vulnerability scanning.
 
 This is an open-ended build list rather than an MVP cut line; entries move into the active queue as their prerequisites are completed.
+
+## Plans & reviews (implementation later unless noted)
+
+- `docs/plans/K2_HORIZON_EVALUATION.md` — local-model evaluation plan (benchmarks distrusted, hardware-gated phases; Phase 1 provider already built).
+- `docs/plans/TAURI_READINESS.md` — desktop boundary review (adapters green-lit, two gaps owned).
+- `docs/plans/LIVING_INTERFACE.md` — ambient companion product spec + architecture review.
+- `docs/plans/VOICE_INTEGRATION.md` — Wispr Flow optional voice plan + review.
+- `docs/plans/WEB_INTELLIGENCE.md` — Scrapling sidecar plan + review (not yet sequenced).
+- `docs/plans/EXPANSION_VISION.md` — 17-capability vision + existence mapping + build order.
+- `docs/plans/DEPENDENCY_REVIEW.md` — direct-dependency audit + CI scanning notes.
+
+## Tasks for Saksham
+
+- [ ] **K2 hardware inventory + viability smoke test (your machine).**
+  Follow Phase 0 and Phase 0.5 of
+  `docs/plans/K2_HORIZON_EVALUATION.md`: record GPU/VRAM/RAM, which K2
+  sizes fit with OS headroom, whether Ollama installs cleanly, then cold
+  / warm load latency, sustained tokens/sec, peak RAM+VRAM, thermals,
+  and host responsiveness under normal dev load (browser + IDE open).
+  No code changes. Done = dated results appended to the plan appendix
+  plus a fit/viable-or-not verdict against the pre-registered gates.
+- [ ] **`tauri dev` windowing verification + bundle icons.** Run the
+  desktop shell via the Tauri CLI on your machine, verify the workspace
+  window (submit/list/cancel/detail flows against the real backend),
+  and produce the missing PNG bundle icon set (placeholder ICO only
+  exists). Report every failure verbatim with logs. Touch frontend
+  assets and config only — no Rust policy/runtime changes.
+- [ ] **Secret OS-backend re-verification.** The `KeyringSecretStore`
+  round-trip currently fails on the main dev machine (vault quirk,
+  documented in-test). Investigate on your machine: does it round-trip
+  there, and under what session conditions? Deliverable: findings
+  appended to the test comment + a verdict on whether the backend can
+  be un-ignored. Touch only the ignored test and its docs.
+- [ ] **SBOM + license automation.** Evaluate `cargo sbom` (or
+  equivalent) and a license-inventory check, wire the winner into
+  `.github/workflows/ci.yml`, and close the two open items in
+  `docs/plans/DEPENDENCY_REVIEW.md`. CI config + docs only.
+- [ ] **Adversarial fixture expansion.** Extend
+  `crates/rocky-runtime/tests/adversarial.rs` with new attack cases
+  following the existing pattern (traversal, kind-confusion, replay,
+  scope games): tests only, no production changes. Every new test must
+  fail first against a deliberately-weakened check if you want to prove
+  it bites — otherwise it must pass against the current code with a
+  comment stating which invariant it pins.
+- [ ] **K2 evaluation runs (gated on inventory).** Only after the
+  inventory verdict: run the Phase 3 benchmark battery and record the
+  dated results table + adopt/reject decision. Do not start early.
 
 ## Guardrails
 

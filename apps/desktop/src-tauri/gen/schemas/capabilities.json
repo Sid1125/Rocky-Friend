@@ -1,0 +1,1 @@
+{"main-capability":{"identifier":"main-capability","description":"Main window: task visibility and approval commands only.","local":true,"windows":["main"],"permissions":["core:default"]}}

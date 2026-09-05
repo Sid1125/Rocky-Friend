@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ROCKY</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main>
+    <h1>ROCKY</h1>
+    <p class="subtitle">Local-first agent companion. Tasks below come from the Rust core.</p>
+
+    <section aria-label="New task">
+      <h2>New task</h2>
+      <input id="goal" type="text" placeholder="What should ROCKY do?" maxlength="512" />
+      <input id="constraints" type="text" placeholder="Constraints, comma separated (optional)" maxlength="512" />
+      <button id="submit">Submit</button>
+      <p id="form-error" class="error" role="alert"></p>
+    </section>
+
+    <section aria-label="Tasks">
+      <h2>Tasks</h2>
+      <button id="refresh">Refresh</button>
+      <ul id="tasks"></ul>
+    </section>
+
+    <section aria-label="Task detail">
+      <h2>Detail</h2>
+      <div id="detail"><p class="hint">Select a task to inspect it.</p></div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

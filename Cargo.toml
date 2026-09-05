@@ -12,5 +12,6 @@ members = [
   "crates/rocky-config",
   "crates/rocky-storage",
   "crates/rocky-models",
-  "crates/rocky-executors"
+  "crates/rocky-executors",
+  "apps/desktop/src-tauri"
 ]

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-capability",
+  "description": "Main window: task visibility and approval commands only.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}
