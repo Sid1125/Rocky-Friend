@@ -2,8 +2,6 @@
 // No authorization logic lives here. Every action calls one Rust command;
 // the Rust core decides. This file renders views, nothing more.
 
-const { invoke } = window.__TAURI__.core;
-
 const goalInput = document.getElementById("goal");
 const constraintsInput = document.getElementById("constraints");
 const formError = document.getElementById("form-error");
@@ -13,6 +11,21 @@ const detail = document.getElementById("detail");
 function showError(message) {
   formError.textContent = message;
 }
+
+// `window.__TAURI__` is injected only when `app.withGlobalTauri` is true in
+// tauri.conf.json, and this is a classic script with no bundler, so there is
+// no module import to fall back on. Without the bridge every flow below is
+// inert, so say so in the page: reading `.core` off `undefined` would throw
+// here and leave a window that renders correctly and answers nothing.
+const bridge = window.__TAURI__;
+if (!bridge?.core?.invoke) {
+  showError(
+    "Tauri bridge unavailable: window.__TAURI__.core.invoke is missing. " +
+      "Set app.withGlobalTauri to true in tauri.conf.json and rebuild."
+  );
+  throw new Error("tauri bridge unavailable");
+}
+const { invoke } = bridge.core;
 
 async function refreshTasks() {
   showError("");

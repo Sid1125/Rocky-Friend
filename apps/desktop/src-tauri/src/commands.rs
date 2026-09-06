@@ -370,4 +370,68 @@ mod tests {
         assert_eq!(contract.goal, "Read a document");
         assert_eq!(contract.constraints, vec!["read-only", "no-network"]);
     }
+
+    /// Walks the exact call order the workspace UI issues, because the
+    /// per-command tests above each start from a fresh state and so cannot
+    /// catch a flow that only breaks in sequence. `showDetail` in
+    /// `frontend/app.js` calls `query_task` and then `inspect_contract` for
+    /// the same id, and the task list is re-read after every mutation.
+    #[test]
+    fn the_ui_call_sequence_survives_end_to_end() {
+        let state = state();
+        let first = do_submit_goal(&state, "Read a document".into(), vec!["read-only".into()])
+            .expect("submit first");
+        let second =
+            do_submit_goal(&state, "Summarize it".into(), Vec::new()).expect("submit second");
+
+        let listed = do_list_tasks(&state).expect("list after submits");
+        assert_eq!(
+            listed
+                .iter()
+                .map(|task| task.id.as_str())
+                .collect::<Vec<_>>(),
+            vec![first.id.as_str(), second.id.as_str()],
+            "the list view renders tasks in id order"
+        );
+
+        let detail = do_query_task(&state, first.id.clone()).expect("query for detail");
+        let contract = do_inspect_contract(&state, first.id.clone()).expect("contract for detail");
+        assert_eq!(detail.goal, contract.goal);
+        assert_eq!(contract.constraints, vec!["read-only"]);
+
+        // A goal submitted without constraints still has a contract, so the
+        // detail pane's second call must succeed rather than fall through to
+        // the `.catch(() => null)` the UI keeps for pre-contract rows.
+        let bare = do_inspect_contract(&state, second.id.clone()).expect("contract without any");
+        assert!(bare.constraints.is_empty());
+
+        do_cancel_task(&state, first.id.clone()).expect("cancel first");
+        let after = do_list_tasks(&state).expect("list after cancel");
+        assert_eq!(after[0].state, "Cancelled");
+        assert_eq!(
+            after[1].state, second.state,
+            "cancelling one task leaves the other untouched"
+        );
+    }
+
+    /// The task list renders a Cancel button on every row, terminal rows
+    /// included, so a second press is reachable from the UI. It must surface
+    /// the refusal as an error the pane can show, never a second transition.
+    #[test]
+    fn cancelling_a_cancelled_task_is_refused_not_repeated() {
+        let state = state();
+        let created = do_submit_goal(&state, "Read a document".into(), Vec::new()).expect("submit");
+        let cancelled = do_cancel_task(&state, created.id.clone()).expect("first cancel");
+        assert_eq!(cancelled.state, "Cancelled");
+
+        let repeat = do_cancel_task(&state, created.id.clone());
+        assert!(repeat.is_err(), "a terminal task cannot cancel again");
+
+        let after = do_query_task(&state, created.id).expect("query after refusal");
+        assert_eq!(after.state, "Cancelled");
+        assert_eq!(
+            after.revision, cancelled.revision,
+            "the refused cancel bumped no revision"
+        );
+    }
 }

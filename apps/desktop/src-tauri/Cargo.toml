@@ -2,6 +2,10 @@
 name = "rocky-desktop"
 version = "0.1.0"
 edition = "2021"
+# Unpublished: ROCKY ships as an application, not as crates.io libraries.
+# Also what makes `cargo deny check licenses` treat this crate as private, so
+# the licence gate reports third-party obligations only.
+publish = false
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

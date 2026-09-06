@@ -25,3 +25,37 @@ jobs:
       - uses: rustsec/audit-check@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+
+  # Licence, ban, and source policy. Reads Cargo.lock, so the verdict does not
+  # depend on the runner's platform: the graph includes the GTK/WebKit crates
+  # that only build on Linux and the windows-* crates that only build on
+  # Windows. Advisories stay with the `audit` job above so each control has
+  # exactly one enforcement point. Policy lives in deny.toml.
+  supply-chain:
+    name: licenses, bans, sources
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check licenses bans sources
+
+  # SPDX 2.3 inventory of every crate in the graph, kept as a build artifact
+  # rather than committed: it is derived from Cargo.lock and would otherwise
+  # churn on every dependency change.
+  sbom:
+    name: sbom
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo install cargo-sbom --locked
+      - run: cargo sbom --output-format spdx_json_2_3 > rocky-sbom.spdx.json
+      # Fail loudly on an empty or malformed document instead of shipping one.
+      - run: |
+          jq -e '.spdxVersion == "SPDX-2.3" and (.packages | length) > 100' \
+            rocky-sbom.spdx.json > /dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-spdx
+          path: rocky-sbom.spdx.json

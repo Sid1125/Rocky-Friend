@@ -1,6 +1,6 @@
 # ROCKY Build Tracker
 
-Last updated: 2026-09-05
+Last updated: 2026-09-06
 
 ## Overall status
 
@@ -87,28 +87,38 @@ This is an engineering estimate against the full personal-project vision, not a 
 - [x] Add SQLite schema versioning and append-only audit-event persistence.
 - [x] Add a provider-agnostic model contract with explicit cloud opt-in routing.
 - [x] Add cross-crate runtime tests for approval-required and queued outcomes.
+- [x] Make the scaffolded desktop shell actually reach the core: `app.withGlobalTauri` was unset, so the static UI rendered and every `invoke` threw on the first line. Fixed with config plus a bridge check that reports itself, and the window `label` pinned to match the declared capability. (2026-09-06)
+- [x] Replace the placeholder icon with a generated bundle set (32/128/256 PNG plus a four-entry ICO) from a checked-in `icons/generate.mjs`, and list the `.ico` in `bundle.icon` so WiX can find it. `cargo tauri build` now produces MSI and NSIS installers. (2026-09-06)
+- [x] Fix the `KeyringSecretStore` backend: `keyring` 3.x had no store feature requested, so it silently resolved to its mock keystore and discarded every secret. Per-target `windows-native` / `apple-native` features, plus a CI-safe test that fails if the mock ever becomes the default again. Linux stays on the mock and is documented as untrusted. (2026-09-06)
+- [x] Enforce licence, ban, and source policy in CI (`cargo deny` + `deny.toml`) and publish an SPDX SBOM artifact (`cargo sbom`), then correct the three dependency-review claims the desktop shell had invalidated. (2026-09-06)
+- [x] Grow the adversarial suite from 9 tests to 24, two of them proved to bite against deliberately weakened guards. (2026-09-06)
 
 ## Verification status
 
 | Check | Status | Evidence |
 |---|---|---|
-| Rust toolchain | Passing | `rustc 1.94.1`, `cargo 1.94.1` |
-| Formatting | Passing | `cargo fmt --check` |
+| Rust toolchain | Passing | `rustc 1.98.1`, `cargo 1.98.1` (was 1.94.1; re-verified on a second Windows machine 2026-09-06) |
+| Formatting | Passing | `cargo fmt --all --check` |
 | Linting | Passing | `cargo clippy --workspace --all-targets -- -D warnings` |
-| Tests | Passing | `cargo test --workspace`: 229 unit/integration tests passed, 1 ignored (attributes and results audited per binary) |
-| Post-change verification | Passing | All checks rerun after desktop shell; `node --check` clean on UI script |
+| Tests | Passing | `cargo test --workspace`: 247 passed, 1 ignored (the OS-credential round trip, which mutates real vault state) |
+| Ignored OS test | Passing on Windows | `cargo test -p rocky-models -- --ignored`: 1 passed after the keyring backend feature fix |
+| Licences / bans / sources | Passing | `cargo deny check licenses bans sources`: all ok, zero warnings |
+| SBOM | Passing | `cargo sbom`: SPDX-2.3, 453 packages, 1336 relationships |
+| Desktop environment | Passing | `cargo tauri info`: WebView2 152.0.4191.62, MSVC Build Tools 2022, all checks ✔ |
+| Desktop bundling | Passing (Windows) | `cargo tauri build`: MSI + NSIS installers produced, icon extracts from the built exe. macOS needs an `icon.icns` that does not exist yet. |
+| Post-change verification | Passing | All checks rerun after the 2026-09-06 batch; `node --check` clean on the UI script |
 
 ## Next tasks
 
 1. [x] Issue non-forgeable runtime permits and introduce executor traits that consume them. (Permits done; single `FilesystemReadExecutor` struct consumes them. A shared executor trait waits for the second executor type per YAGNI.)
 2. [x] Add a canonicalized, scoped filesystem-read executor.
-3. [x] Add Tauri command adapters (seven thin adapters built and tested; `tauri dev` windowing run and PNG bundle icons remain).
+3. [x] Add Tauri command adapters (seven thin adapters built and tested; the windowing run and PNG bundle icons landed 2026-09-06, which is also when the adapters were first reachable from the UI at all).
 4. [x] Add a resource sampling adapter. (Done: single-shot sysinfo sampler feeding the pure classifier; polling cadence stays the caller's decision.)
 5. [x] Consume persisted approvals in the runtime gate (verify hash, expiry, revocation before converting `ApprovalRequired` into a permit) and enforce expiration/revocation end to end.
 
 ## Planned capability areas
 
-- [ ] Tauri 2 desktop host and React UI. (Shell + static workspace UI done; `tauri dev` run, PNG icons, and React migration remain.)
+- [ ] Tauri 2 desktop host and React UI. (Shell + static workspace UI done and now actually functional — see the 2026-09-06 `withGlobalTauri` fix. PNG bundle icons done. React migration remains.)
 - [x] SQLite persistence and migrations. (Done: `SqliteTaskStore` behind the `TaskStore` boundary, schema v2 with v1 migration, transactional transitions, append-only audit events.)
 - [ ] Platform-specific, canonicalized filesystem executor.
 - [x] Structured, allowlisted process executor.
@@ -116,7 +126,7 @@ This is an engineering estimate against the full personal-project vision, not a 
 - [x] Model-provider abstraction and local/cloud opt-in configuration. (Done: provider contract with explicit cloud routing gate plus strict config defaults.)
 - [ ] Resource sampler and cancellation propagation. (Sampler done: single-shot sysinfo readings feed the existing classifier; cancellation was already propagated.)
 - [x] Prompt-injection and end-to-end adversarial test suites.
-- [ ] CI, dependency review, SBOM, and vulnerability scanning.
+- [x] CI, dependency review, SBOM, and vulnerability scanning. (Done 2026-09-06: `fmt`/`clippy`/`test`, `rustsec/audit-check`, `cargo deny check licenses bans sources`, and an SPDX `cargo sbom` artifact are all CI jobs.)
 
 This is an open-ended build list rather than an MVP cut line; entries move into the active queue as their prerequisites are completed.
 
@@ -140,29 +150,87 @@ This is an open-ended build list rather than an MVP cut line; entries move into 
   and host responsiveness under normal dev load (browser + IDE open).
   No code changes. Done = dated results appended to the plan appendix
   plus a fit/viable-or-not verdict against the pre-registered gates.
-- [ ] **`tauri dev` windowing verification + bundle icons.** Run the
-  desktop shell via the Tauri CLI on your machine, verify the workspace
-  window (submit/list/cancel/detail flows against the real backend),
-  and produce the missing PNG bundle icon set (placeholder ICO only
-  exists). Report every failure verbatim with logs. Touch frontend
-  assets and config only — no Rust policy/runtime changes.
-- [ ] **Secret OS-backend re-verification.** The `KeyringSecretStore`
-  round-trip currently fails on the main dev machine (vault quirk,
-  documented in-test). Investigate on your machine: does it round-trip
-  there, and under what session conditions? Deliverable: findings
-  appended to the test comment + a verdict on whether the backend can
-  be un-ignored. Touch only the ignored test and its docs.
-- [ ] **SBOM + license automation.** Evaluate `cargo sbom` (or
-  equivalent) and a license-inventory check, wire the winner into
-  `.github/workflows/ci.yml`, and close the two open items in
-  `docs/plans/DEPENDENCY_REVIEW.md`. CI config + docs only.
-- [ ] **Adversarial fixture expansion.** Extend
-  `crates/rocky-runtime/tests/adversarial.rs` with new attack cases
-  following the existing pattern (traversal, kind-confusion, replay,
-  scope games): tests only, no production changes. Every new test must
-  fail first against a deliberately-weakened check if you want to prove
-  it bites — otherwise it must pass against the current code with a
-  comment stating which invariant it pins.
+- [x] **`tauri dev` windowing verification + bundle icons.** Done
+  2026-09-06. `cargo tauri info` reports a clean environment (WebView2
+  152.0.4191.62, MSVC Build Tools 2022, rustc 1.98.1). Three defects
+  found and fixed, all config/asset only:
+  1. **The workspace UI was inert.** `frontend/app.js` read
+     `window.__TAURI__.core`, but `app.withGlobalTauri` was unset and
+     Tauri 2 defaults it to `false`
+     (`tauri-utils-2.9.3/src/config.rs:3073`), and the file is a classic
+     `<script>` with no bundler, so there was no module import to fall
+     back on. The window opened and rendered static HTML while every
+     flow threw on line one. Fixed by setting `withGlobalTauri` and by
+     making a missing bridge report itself in `#form-error` instead of
+     dying silently.
+  2. **`bundle.icon` referenced three PNGs that did not exist**; only a
+     16x16 placeholder ICO did. Replaced with a generated set (32, 128,
+     256 plus a four-entry ICO) from `icons/generate.mjs`, checked in as
+     source so the artifacts are re-derivable and cost no new
+     dependency.
+  3. **Bundling still failed after that**, verbatim:
+     `Error failed to bundle project: `Couldn't find a .ico icon``. The
+     WiX bundler looks for a `.ico` in the configured icon list, not on
+     disk, and `icons/icon.ico` was never listed. Added.
+  Verified end to end afterwards: `cargo tauri build` produced
+  `rocky-desktop_0.1.0_x64_en-US.msi` and
+  `rocky-desktop_0.1.0_x64-setup.exe`, and the icon extracts from the
+  built exe. Also pinned the window `label` to `main` so it matches the
+  existing `capabilities/default.json` explicitly rather than by
+  default. Backend side of every UI flow now covered by two new adapter
+  tests, including the double-cancel a terminal row's Cancel button
+  makes reachable. Still open: no `icon.icns`, so macOS bundling will
+  fail the same way item 3 did — deliberately not guessed at from a
+  Windows machine. React migration still deferred.
+- [x] **Secret OS-backend re-verification.** Done 2026-09-06. Reproduced
+  the failure exactly on a second, independent Windows 11 machine, then
+  found the 2026-09-05 "vault/session quirk" diagnosis was wrong. Root
+  cause: `keyring` 3.x compiles in no credential store unless a store
+  feature is requested, and with none requested it resolves
+  `pub use mock as default`; the mock builder returns a fresh empty
+  credential per `Entry::new`, and `KeyringSecretStore::entry` builds one
+  per operation, so the write landed in a dropped value. Confirmed by
+  `cargo tree -p keyring` resolving only `log` + `zeroize`. Fixed with
+  per-target features (`windows-native`, `apple-native`); the ignored
+  round-trip test now passes on this machine. Verdict: the backend is
+  dependable on Windows and macOS; the round-trip test stays `#[ignore]`d
+  because it mutates real OS credential state and CI has no vault.
+  Regression cover is `keyring_backend_is_not_the_mock_store`, which runs
+  in CI, touches no credential, and was proved to bite (removing the
+  feature makes it fail with its own diagnostic). **Linux is still on the
+  mock store** and must not be trusted; recorded as an open item in
+  `docs/plans/DEPENDENCY_REVIEW.md`.
+- [x] **SBOM + license automation.** Done 2026-09-06. `cargo sbom` emits
+  SPDX 2.3 (verified locally: 453 packages, 1336 relationships,
+  `pkg:cargo` purls) and `cargo deny` enforces licence, ban, and source
+  policy from `deny.toml`; both are wired into
+  `.github/workflows/ci.yml` as the `sbom` and `supply-chain` jobs.
+  Advisories deliberately stay with the existing `audit` job so each
+  control has one enforcement point. The review also corrected three
+  claims the desktop shell had invalidated: the workspace has eight
+  direct dependencies, not two; Tauri brings `tokio`, `hyper`,
+  `reqwest`, and `rustls` into the graph, so "no async runtimes, no HTTP
+  clients" is now only true of ROCKY's own crates; and the licence set is
+  not MIT/Apache-only — `MPL-2.0` needed an explicit decision and
+  `LGPL-2.1-or-later` is deliberately excluded from the allowlist. Every
+  workspace crate now sets `publish = false`, which is what makes the
+  licence gate report third-party obligations only. Both open items in
+  `docs/plans/DEPENDENCY_REVIEW.md` are closed; two new ones are named.
+- [x] **Adversarial fixture expansion.** Done 2026-09-06.
+  `crates/rocky-runtime/tests/adversarial.rs` grew from 9 tests to 24,
+  each stating the invariant it pins: tool-id shadowing (plus the
+  stronger point that a definition's scope is never authority),
+  kind-confused *approvals*, expiry closing on the clock alone with no
+  store write, revoked SQLite area trust, `DenyAction` not retracting
+  area trust, the two approval paths refusing each other's records,
+  approvals queueing under capacity pressure without being consumed,
+  A4 and over-ceiling autonomy refused with no approval able to rescue
+  them, argument floods erroring before any audit entry, post-permit
+  argv substitution stopped before any spawn, a held permit dying with
+  its worker, `.` and backslash traversal, the deliberately-permitted
+  separator cases, and battery/idle backpressure. Two were proved to
+  bite by weakening the guard they cover; those quote the outcome the
+  weakened code produced.
 - [ ] **K2 evaluation runs (gated on inventory).** Only after the
   inventory verdict: run the Phase 3 benchmark battery and record the
   dated results table + adopt/reject decision. Do not start early.
